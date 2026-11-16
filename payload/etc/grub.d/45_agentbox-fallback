@@ -1,0 +1,30 @@
+#!/bin/sh
+# Counts boot attempts in a small file on the EFI partition (GRUB cannot write to btrfs).
+# agentbox-boot-ok clears the count after a good boot; on the third attempt in a row
+# without one, GRUB boots the copy of the last good system instead.
+set -e
+esp=$(grub-probe --target=fs_uuid /boot/efi 2>/dev/null) || exit 0
+uuid=$(grub-probe --target=fs_uuid /)
+rel=$(grub-mkrelpath /); rel=${rel%/}; rel=${rel%/.agentbox-good}
+good="$rel/.agentbox-good"
+cat <<END
+insmod part_gpt
+insmod fat
+insmod btrfs
+if search --no-floppy --fs-uuid --set=agentbox_esp $esp; then
+  load_env --file (\$agentbox_esp)/agentbox/grubenv agentbox_tries
+  if [ "\$agentbox_tries" = "" ]; then set agentbox_tries=1
+  elif [ "\$agentbox_tries" = "1" ]; then set agentbox_tries=2
+  else set agentbox_tries=3; fi
+  save_env --file (\$agentbox_esp)/agentbox/grubenv agentbox_tries
+fi
+search --no-floppy --fs-uuid --set=agentbox_root $uuid
+if [ -e (\$agentbox_root)$good/agentbox-vmlinuz ]; then
+  menuentry 'Last good system (automatic fallback)' --id agentbox-fallback {
+    search --no-floppy --fs-uuid --set=root $uuid
+    linux $good/agentbox-vmlinuz root=UUID=$uuid rw rootflags=subvol=${good#/} $GRUB_CMDLINE_LINUX agentbox.fallback=1
+    initrd $good/agentbox-initrd
+  }
+  if [ "\$agentbox_tries" = "3" ]; then set default=agentbox-fallback; fi
+fi
+END

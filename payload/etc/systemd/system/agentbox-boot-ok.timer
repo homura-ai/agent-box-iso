@@ -1,0 +1,8 @@
+[Unit]
+Description=Mark the boot as good once it has stayed up for three minutes
+
+[Timer]
+OnBootSec=3min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,6 @@
+[Unit]
+Description=Mark this boot as good and keep a copy of the system for fallback
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/agentbox-boot-ok
