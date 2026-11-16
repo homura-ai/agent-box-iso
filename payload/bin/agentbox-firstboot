@@ -1,0 +1,12 @@
+#!/bin/bash
+# Installs grub-btrfs (not packaged in Debian) so every snapshot gets a boot-menu entry. Retries on each boot until it works.
+set -euo pipefail
+TAG=v4.14
+for _ in $(seq 60); do getent hosts github.com >/dev/null && break; sleep 5; done
+d=$(mktemp -d)
+git clone --depth 1 --branch "$TAG" https://github.com/Antynea/grub-btrfs "$d/grub-btrfs"
+make -C "$d/grub-btrfs" install
+update-grub
+systemctl enable --now grub-btrfsd.service
+snapper -c root create -c number -d "first boot" --userdata important=yes
+mkdir -p /var/lib/agentbox && touch /var/lib/agentbox/firstboot.done

@@ -1,0 +1,49 @@
+# Desktop seat: sway and the small programs GNOME would otherwise provide
+sway
+swaybg
+swayidle
+swaylock
+waybar
+foot
+fuzzel
+mako-notifier
+grim
+slurp
+wtype
+wl-clipboard
+wayvnc
+xwayland
+network-manager
+pipewire
+wireplumber
+xdg-desktop-portal-wlr
+fonts-dejavu
+fonts-noto-color-emoji
+# Agents' own virtual X11 displays
+xvfb
+openbox
+xdotool
+scrot
+x11vnc
+# Rollbacks and memory
+snapper
+inotify-tools
+systemd-zram-generator
+systemd-oomd
+# Agent stack basics (T3 Code AppImage needs FUSE and the GTK/NSS libraries)
+python3
+git
+tmux
+rsync
+jq
+openssl
+make
+gawk
+openssh-server
+fuse3
+libfuse2t64
+libgtk-3-0t64
+libnss3
+libasound2t64
+libgbm1
+libxss1

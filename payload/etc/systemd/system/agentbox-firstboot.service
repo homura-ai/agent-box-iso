@@ -1,0 +1,12 @@
+[Unit]
+Description=Agent box first-boot setup (boot-menu snapshots)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/agentbox/firstboot.done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/agentbox-firstboot
+
+[Install]
+WantedBy=multi-user.target

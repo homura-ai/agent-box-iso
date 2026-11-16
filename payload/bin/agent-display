@@ -1,0 +1,20 @@
+#!/bin/bash
+# Give an agent its own virtual X11 screen.
+#   agent-display start [N]   start display :N (default: first free from :90) and print "DISPLAY=:N"
+#   agent-display stop N      stop it
+#   agent-display run CMD...  run CMD on a throwaway display
+set -euo pipefail
+dir="${XDG_RUNTIME_DIR:-/tmp}/agent-display"; mkdir -p "$dir"
+case "${1:-}" in
+  start)
+    n="${2:-}"
+    if [ -z "$n" ]; then n=90; while [ -e "/tmp/.X11-unix/X$n" ]; do n=$((n+1)); done; fi
+    setsid Xvfb ":$n" -screen 0 1920x1080x24 -nolisten tcp >"$dir/$n.log" 2>&1 &
+    echo $! > "$dir/$n.pid"
+    for _ in $(seq 50); do [ -e "/tmp/.X11-unix/X$n" ] && break; sleep 0.1; done
+    DISPLAY=":$n" WAYLAND_DISPLAY= setsid openbox >>"$dir/$n.log" 2>&1 &
+    echo "DISPLAY=:$n" ;;
+  stop) kill "$(cat "$dir/$2.pid")" && rm -f "$dir/$2.pid" ;;
+  run) shift; exec xvfb-run -a -s "-screen 0 1920x1080x24" env WAYLAND_DISPLAY= "$@" ;;
+  *) sed -n '2,6p' "$0"; exit 2 ;;
+esac

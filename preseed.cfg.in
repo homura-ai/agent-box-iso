@@ -1,0 +1,51 @@
+# Debian installer answers for the agent box. build-iso.sh fills in the @...@ values.
+# The installer still stops once, at "Write the changes to disks?", so it never erases a disk unasked.
+d-i debian-installer/locale string en_US.UTF-8
+d-i keyboard-configuration/xkb-keymap select us
+d-i netcfg/choose_interface select auto
+d-i netcfg/get_hostname string @HOSTNAME@
+d-i netcfg/get_domain string
+d-i netcfg/hostname string @HOSTNAME@
+d-i hw-detect/load_firmware boolean true
+d-i mirror/country string manual
+d-i mirror/http/hostname string deb.debian.org
+d-i mirror/http/directory string /debian
+d-i mirror/http/proxy string
+d-i passwd/root-login boolean false
+d-i passwd/user-fullname string @USER@
+d-i passwd/username string @USER@
+d-i passwd/user-password-crypted password @PWHASH@
+d-i clock-setup/utc boolean true
+d-i time/zone string @TIMEZONE@
+d-i clock-setup/ntp boolean true
+
+# One EFI partition and one btrfs partition holding everything else, /boot included,
+# so a snapshot carries its own kernel. No swap partition: zram is set up after install.
+d-i partman-auto/method string regular
+d-i partman-auto/expert_recipe string                         \
+      agentbox ::                                             \
+              1024 1024 1024 free                             \
+                      $iflabel{ gpt } $reusemethod{ }         \
+                      method{ efi } format{ } .               \
+              20000 30000 -1 btrfs                            \
+                      method{ format } format{ }              \
+                      use_filesystem{ } filesystem{ btrfs }   \
+                      mountpoint{ / } .
+d-i partman-auto/choose_recipe select agentbox
+d-i partman-basicfilesystems/no_swap boolean false
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+# partman/confirm is deliberately not preseeded.
+
+d-i apt-setup/non-free-firmware boolean true
+d-i apt-setup/cdrom/set-first boolean false
+tasksel tasksel/first multiselect standard, ssh-server
+d-i pkgsel/include string btrfs-progs sudo curl git ca-certificates
+d-i pkgsel/upgrade select full-upgrade
+popularity-contest popularity-contest/participate boolean false
+d-i grub-installer/only_debian boolean true
+d-i grub-installer/bootdev string default
+d-i preseed/late_command string \
+    mkdir -p /target/opt/agentbox; cp -r /cdrom/agentbox/. /target/opt/agentbox/; \
+    in-target /bin/bash /opt/agentbox/late.sh @USER@
+d-i finish-install/reboot_in_progress note
