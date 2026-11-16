@@ -28,6 +28,13 @@ snapper --no-dbus -c root set-config TIMELINE_CREATE=yes TIMELINE_CLEANUP=yes \
   NUMBER_LIMIT_IMPORTANT=5 EMPTY_PRE_POST_CLEANUP=yes || fail "snapper set-config"
 systemctl enable snapper-timeline.timer snapper-cleanup.timer || fail "snapper timers"
 
+step "mount /home and /.snapshots by name, so they are also there when the fallback copy of the system boots"
+src=$(awk '$2=="/" && $1!~/^#/ {print $1}' /etc/fstab)
+sv=$(awk '$2=="/" && $1!~/^#/ {print $4}' /etc/fstab | tr , '\n' | sed -n 's/^subvol=//p'); sv=${sv#/}
+for d in home .snapshots; do
+  [ "$(stat -c %i /$d)" = 256 ] && echo "$src /$d btrfs defaults,subvol=${sv:+$sv/}$d 0 0" >> /etc/fstab || fail "$d in fstab"
+done
+
 step "memory: compressed swap in RAM, pressure killer, thrash protection"
 cp -r "$P/etc/." /etc/ || fail "copy /etc files"
 systemctl enable systemd-oomd.service || fail "enable oomd"
@@ -44,4 +51,10 @@ step "desktop and agent tools for $U"
 cp -r "$P/home/." "$H/" && chown -R "$U:$U" "$H" || fail "copy home files"
 install -m 755 "$P/bin/"* /usr/local/bin/ || fail "install scripts"
 systemctl enable agentbox-firstboot.service || fail "enable firstboot"
+
+step "fallback to the last good system after three failed boots"
+mkdir -p /boot/efi/agentbox && grub-editenv /boot/efi/agentbox/grubenv create || fail "boot counter file"
+systemctl enable agentbox-boot-ok.timer || fail "enable boot-ok timer"
+update-initramfs -u || fail "update-initramfs"
+update-grub || fail "update-grub"
 echo "== done"

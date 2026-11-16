@@ -1,0 +1,15 @@
+#!/bin/bash
+# Run from the fallback system: copy it over the broken main system, then reboot into the main system.
+# The broken state is kept as a read-only snapshot named .agentbox-broken-<time> in the main system.
+set -euo pipefail
+grep -qw agentbox.fallback=1 /proc/cmdline || { echo "Not running the fallback copy; nothing to restore." >&2; exit 1; }
+[ "$(id -u)" = 0 ] || exec sudo "$0" "$@"
+cur=$(findmnt -no FSROOT /); main=${cur%/.agentbox-good}
+top=$(mktemp -d); mount -o subvolid=5 "$(findmnt -no SOURCE / | sed 's/\[.*//')" "$top"
+m="$top$main"
+btrfs subvolume snapshot -r "$m" "$m/.agentbox-broken-$(date +%Y%m%d-%H%M%S)"
+rsync -aAXHx --delete --exclude=/home --exclude=/.snapshots --exclude='/.agentbox-*' \
+  --exclude=/agentbox-vmlinuz --exclude=/agentbox-initrd --exclude=/etc/fstab / "$m/"
+umount "$top"
+grub-editenv /boot/efi/agentbox/grubenv unset agentbox_tries
+echo "Restored. Reboot to return to the main system."

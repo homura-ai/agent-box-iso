@@ -1,0 +1,24 @@
+#!/bin/bash
+# Runs three minutes after boot. If the system came up, clear the failed-boot count and
+# refresh /.agentbox-good, the writable copy GRUB falls back to after three failed boots.
+set -euo pipefail
+env=/boot/efi/agentbox/grubenv
+for _ in $(seq 60); do systemctl is-active -q multi-user.target && break; sleep 10; done
+systemctl is-active -q multi-user.target
+if grep -qw agentbox.fallback=1 /proc/cmdline; then
+  logger -t agentbox -p user.crit "Running the last good copy after failed boots. Run 'sudo agentbox-restore' to put it back as the main system."
+  exit 0
+fi
+sv=$(findmnt -no FSROOT /); sv=${sv#/}
+k=$(uname -r)
+[ -d /.agentbox-good.new ] && btrfs subvolume delete /.agentbox-good.new
+btrfs subvolume snapshot / /.agentbox-good.new
+cp --reflink=auto "/boot/vmlinuz-$k" /.agentbox-good.new/agentbox-vmlinuz
+cp --reflink=auto "/boot/initrd.img-$k" /.agentbox-good.new/agentbox-initrd
+awk -v sv="${sv:+$sv/}.agentbox-good" '$2=="/" && $1!~/^#/ {
+  if ($4 ~ /subvol=/) sub(/subvol=[^,]+/, "subvol=" sv, $4); else $4 = $4 ",subvol=" sv } 1' \
+  /etc/fstab > /.agentbox-good.new/etc/fstab
+[ -d /.agentbox-good ] && btrfs subvolume delete /.agentbox-good
+mv /.agentbox-good.new /.agentbox-good
+[ -f "$env" ] || { mkdir -p "${env%/*}"; grub-editenv "$env" create; }
+grub-editenv "$env" unset agentbox_tries

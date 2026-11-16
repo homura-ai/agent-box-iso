@@ -1,0 +1,9 @@
+#!/bin/sh
+# If the root filesystem has no working init, reboot instead of stopping at a rescue prompt,
+# so the failed-boot counter can act.
+case "$1" in prereqs) exit 0;; esac
+if ! chroot "${rootmnt}" /usr/bin/test -x "${init:-/sbin/init}" 2>/dev/null; then
+  echo "agentbox: no working init in the root filesystem, rebooting in 10 s"
+  sleep 10
+  reboot -f
+fi

@@ -13,6 +13,13 @@ the kernel inside the root snapshots, grub-btrfs boot-menu entries for each snap
 systemd-oomd, the thrash-protection setting, every tool in `payload/packages.txt`, an agent
 display driven with xdotool, and the sway config loading without errors.
 
+The failed-boot fallback was tested the same day: with systemd deleted from a running install,
+the machine rebooted itself, fell back to the last good copy on the third attempt (53 seconds,
+untouched) with `/home` intact, and `agentbox-restore` brought the main system back. In that
+test the no-init reboot hook was added to an installed system by hand; its install step in
+`late.sh` has not been through a fresh install yet, and the 15-minute hung-boot timeout was
+not exercised.
+
 Not tested: a real laptop (Wi-Fi during install, graphics, firmware), sway on a real screen,
 actually booting into a snapshot from the boot menu, and the `move/` scripts beyond
 `capture-system.sh`.
@@ -25,6 +32,13 @@ actually booting into a snapshot from the boot menu, and the `move/` scripts bey
 - **Snapshots:** snapper snapshots `/` hourly and before and after every `apt` run.
 - **Boot-menu rollback:** on first boot with a network, `agentbox-firstboot` installs grub-btrfs
   from its source, which adds every snapshot to the boot menu.
+- **Failed-boot fallback:** three minutes into a good boot, `agentbox-boot-ok` keeps a writable
+  copy of the system in `/.agentbox-good` and clears a boot counter kept on the EFI partition.
+  After two boots in a row that never get that far, GRUB boots the copy on the third. A kernel
+  panic reboots after 20 seconds, a root filesystem with no init after 10, and a boot that hangs
+  after 15 minutes, so failures count without anyone at the machine. The copy keeps booting until
+  `sudo agentbox-restore` copies it over the main system; the broken state is kept as a read-only
+  snapshot `/.agentbox-broken-<time>`. `/home` is never touched.
 - **Memory:** compressed swap in RAM (zram), systemd-oomd, and thrash protection.
 - **Desktop:** logging in on the first console starts sway (`~/.config/sway/config`).
 - **Agent displays:** `agent-display start` gives an agent its own Xvfb screen with openbox;
@@ -36,7 +50,7 @@ before it copies an agent stack over, so the installed machine is ready to be a 
 that kind of move. machine-setup's own scripts still expect Fedora on the destination.
 
 Not included: the agent stack itself (Claude Code, Codex, T3 Code, the proxies) and any
-credentials. Automatic fallback to the last good snapshot after a failed boot is not built.
+credentials.
 
 ## Build
 
