@@ -54,6 +54,11 @@ credentials.
 
 ## Build
 
+Requires `xorriso`, `curl`, `sha256sum`, `openssl` and Python 3. Checksum-file
+signature verification also requires `gpgv` and the Debian role keyring at
+`/usr/share/keyrings/debian-role-keys.gpg`; without them the build warns and
+checks only the downloaded checksum.
+
 ```bash
 cp agentbox.env.example agentbox.env    # then edit it
 ./build-iso.sh --out agentbox.iso
@@ -86,5 +91,8 @@ post-install step is `/var/log/agentbox-install.log` on the installed system.
 - `payload/etc/`, `payload/home/`, `payload/bin/`: files copied into the new system.
 - `move/capture-system.sh`: run on the old machine; records the packages, system units, flatpaks,
   firewall and changed `/etc` files that have to be re-created on the new one.
-- `move/send-home.sh`: run on the old machine; copies all of `/home` to the new machine with
-  `btrfs send` and prints the command that switches the new machine to it.
+- `move/send-home.sh`: run on the old machine; copies a snapshot of `/home` to the new machine with
+  `btrfs send` and prints the command that switches the new machine to it. Both
+  machines need btrfs `/home`, passwordless sudo and working SSH. Nested subvolumes
+  are not included; send them separately (`.snapshots` entries are omitted from
+  the script's listing).
